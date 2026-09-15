@@ -1,0 +1,29 @@
+{
+  "name": "polygraph",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The onchain lie detector — what the crowd says vs. what the money does. Built on the Nansen API.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "backfill": "tsx scripts/backfill.ts",
+    "test": "tsx --test src/lib/*.test.ts"
+  },
+  "dependencies": {
+    "next": "15.5.3",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "tsx": "^4.23.13",
+    "typescript": "5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "project": "Polygraph",
+  "purpose": "Nansen Meridian Buildathon — verifiable API call log. Every call below was made in service of the calibration corpus or the live divergence reading; none were made to inflate this number.",
+  "startedAt": "2026-09-15T22:55:34.888Z",
+  "finishedAt": "2026-09-15T22:59:50.395Z",
+  "apiCalls": 1219,
+  "errors": 3,
+  "cacheHits": 0,
+  "callsByEndpoint": {
+    "tgm/token-ohlcv": 9,
+    "prediction-market/market-screener": 21,
+    "tgm/flow-intelligence": 18,
+    "prediction-market/ohlcv": 982,
+    "prediction-market/top-holders": 66,
+    "prediction-market/trades-by-market": 61,
+    "prediction-market/pnl-by-market": 62
+  },
+  "assetsCovered": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "marketsSeen": {
+    "BTC": {
+      "active": 300,
+      "closed": 300
+    },
+    "ETH": {
+      "active": 300,
+      "closed": 300
+    },
+    "SOL": {
+      "active": 300,
+      "closed": 300
+    }
+  },
+  "calibrationObservations": 3580,
+  "calibrationByBucket": [
+    {
+      "lower": 0,
+      "upper": 0.1,
+      "samples": 1979,
+      "realised": 0.019706922688226377
+    },
+    {
+      "lower": 0.1,
+      "upper": 0.2,
+      "samples": 276,
+      "realised": 0.2717391304347826
+    },
+    {
+      "lower": 0.2,
+      "upper": 0.3,
+      "samples": 168,
+      "realised": 0.35119047619047616
+    },
+    {
+      "lower": 0.3,
+      "upper": 0.4,
+      "samples": 179,
+      "realised": 0.5642458100558659
+    },
+    {
+      "lower": 0.4,
+      "upper": 0.5,
+      "samples": 229,
+      "realised": 0.5982532751091703
+    },
+    {
+      "lower": 0.5,
+      "upper": 0.6,
+      "samples": 283,
+      "realised": 0.49823321554770317
+    },
+    {
+      "lower": 0.6,
+      "upper": 0.7,
+      "samples": 123,
+      "realised": 0.6016260162601627
+    },
+    {
+      "lower": 0.7,
+      "upper": 0.8,
+      "samples": 124,
+      "realised": 0.6854838709677419
+    },
+    {
+      "lower": 0.8,
+      "upper": 0.9,
+      "samples": 105,
+      "realised": 0.7142857142857143
+    },
+    {
+      "lower": 0.9,
+      "upper": 1,
+      "samples": 114,
+      "realised": 0.8947368421052632
+    }
+  ],
+  "liveSnapshot": [
+    {
+      "symbol": "SOL",
+      "verdict": "DECEPTION",
+      "gapScore": 66,
+      "confidence": "HIGH",
+      "headline": "The crowd is buying SOL. The best-performing wallets are selling it."
+    },
+    {
+      "symbol": "BTC",
+      "verdict": "TENSION",
+      "gapScore": 35,
+      "confidence": "MEDIUM",
+      "headline": "The crowd is leaning long BTC. The best-performing wallets are selling it."
+    },
+    {
+      "symbol": "ETH",
+      "verdict": "TENSION",
+      "gapScore": 19,
+      "confidence": "MEDIUM",
+      "headline": "Informed capital is aggressively buying ETH well ahead of the crowd, which is merely buying."
+    }
+  ]
+}
