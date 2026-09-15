@@ -13,3 +13,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*
+
+# demo recording artifacts
+vid/
+frames/
+*.webm
