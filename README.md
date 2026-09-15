@@ -4,6 +4,8 @@
 
 Built for the **Nansen Meridian Buildathon** (14–27 September 2026) on the Nansen API.
 
+**Live: https://polygraph-ochre.vercel.app**
+
 ---
 
 ## The idea in one sentence
