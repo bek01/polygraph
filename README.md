@@ -154,6 +154,25 @@ Cache hits are counted separately and deliberately **excluded** from that total 
 
 ---
 
+## How live is it
+
+The divergence readout is live. Every uncached page load triggers **12 Nansen calls** — one market screener, one spot OHLCV and two flow-intelligence timeframes per asset — and the snapshot carries the timestamp it was taken at, shown in the header as "updated Ns ago".
+
+Freshness is bounded deliberately rather than left to chance:
+
+| Layer | Behaviour |
+|---|---|
+| Vercel edge | `s-maxage=60`, `stale-while-revalidate=240` — visitors inside a minute share one reading; after that the next visitor gets the cached copy instantly while a fresh one is fetched behind them |
+| In-process | 120s per-instance cache (`POLYGRAPH_CACHE_TTL`) |
+| Page poll | re-reads every 5 minutes, and **only while the tab is visible** |
+| ↻ Refresh | bypasses every cache and pays for a real 12-call read |
+
+The poll is five minutes, not five seconds, on purpose: a dashboard left open on a second monitor should not quietly drain an API key overnight. The manual refresh exists for when someone wants a reading *now* and is willing to spend the calls.
+
+**The calibration panel is deliberately not live.** It is served from the committed corpus of ~900 resolved markets, because recomputing it would cost ~900 API calls per view to answer a question whose answer only changes as new markets settle. Re-run `npm run backfill` to rebuild it. `?live=1` on `/api/backtest` forces a live recomputation if you want to see it happen.
+
+---
+
 ## Running it
 
 ```bash

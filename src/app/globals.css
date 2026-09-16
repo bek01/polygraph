@@ -433,3 +433,15 @@ table.cohorts .num { font-family: var(--mono); text-align: right; white-space: n
   width: 5px; height: 1px;
   background: var(--dim);
 }
+
+button.chip.refresh {
+  cursor: pointer;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  transition: all 0.14s ease;
+}
+button.chip.refresh:hover:not(:disabled) {
+  color: var(--do);
+  border-color: rgba(34, 211, 238, 0.45);
+}
+button.chip.refresh:disabled { opacity: 0.5; cursor: wait; }

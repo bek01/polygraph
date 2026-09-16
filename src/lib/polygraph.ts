@@ -20,7 +20,11 @@ import type {
 /** Polymarket markets per asset. 200 is comfortably above BTC's live count. */
 const MARKETS_PER_ASSET = 200;
 
-async function marketsFor(asset: AssetDef, err: (m: string) => void) {
+/** Passed down when the caller wants a genuinely fresh read rather than a
+ *  cached one — the manual refresh, and the backfill. */
+type Freshness = { ttlMs?: number };
+
+async function marketsFor(asset: AssetDef, err: (m: string) => void, f: Freshness) {
   return nansenSafe<PredictionMarket>(
     'prediction-market/market-screener',
     {
@@ -29,11 +33,11 @@ async function marketsFor(asset: AssetDef, err: (m: string) => void) {
       order_by: [{ field: 'volume_1wk', direction: 'DESC' }],
       pagination: { page: 1, per_page: MARKETS_PER_ASSET },
     },
-    { onError: err },
+    { ...f, onError: err },
   );
 }
 
-async function spotFor(asset: AssetDef, err: (m: string) => void) {
+async function spotFor(asset: AssetDef, err: (m: string) => void, f: Freshness) {
   const to = new Date();
   const from = new Date(to.getTime() - 3 * 24 * 3600 * 1000);
   const candles = await nansenSafe<TokenCandle>(
@@ -44,23 +48,23 @@ async function spotFor(asset: AssetDef, err: (m: string) => void) {
       timeframe: '1h',
       date: { from: iso(from), to: iso(to) },
     },
-    { onError: err },
+    { ...f, onError: err },
   );
   if (candles.length === 0) return null;
   return candles[candles.length - 1].close ?? null;
 }
 
-async function flowsFor(asset: AssetDef, err: (m: string) => void) {
+async function flowsFor(asset: AssetDef, err: (m: string) => void, f: Freshness) {
   const [day, week] = await Promise.all([
     nansenSafe<FlowIntelligence>(
       'tgm/flow-intelligence',
       { chain: asset.chain, token_address: asset.tokenAddress, timeframe: '1d' },
-      { onError: err },
+      { ...f, onError: err },
     ),
     nansenSafe<FlowIntelligence>(
       'tgm/flow-intelligence',
       { chain: asset.chain, token_address: asset.tokenAddress, timeframe: '7d' },
-      { onError: err },
+      { ...f, onError: err },
     ),
   ]);
   return { day: day[0] ?? null, week: week[0] ?? null };
@@ -69,16 +73,18 @@ async function flowsFor(asset: AssetDef, err: (m: string) => void) {
 export async function analyseAsset(
   asset: AssetDef,
   errors: string[],
+  fresh = false,
 ): Promise<AssetVerdict> {
   const err = (m: string) => errors.push(m);
   const caveats: string[] = [];
+  const f: Freshness = fresh ? { ttlMs: 0 } : {};
 
   // Spot is needed before the crowd can be read (barrier markets are scored by
   // distance from spot), so it is fetched first and the rest in parallel.
-  const spot = await spotFor(asset, err);
+  const spot = await spotFor(asset, err, f);
   const [markets, flows] = await Promise.all([
-    marketsFor(asset, err),
-    flowsFor(asset, err),
+    marketsFor(asset, err, f),
+    flowsFor(asset, err, f),
   ]);
 
   const { say, build } = readCrowd(markets, asset, spot);
@@ -130,14 +136,19 @@ export async function analyseAsset(
   };
 }
 
-export async function snapshot(symbols?: string[]): Promise<PolygraphSnapshot> {
+export async function snapshot(
+  symbols?: string[],
+  opts: { fresh?: boolean } = {},
+): Promise<PolygraphSnapshot> {
   const before = callStats();
   const errors: string[] = [];
   const targets = symbols?.length
     ? ASSETS.filter((a) => symbols.includes(a.symbol))
     : ASSETS;
 
-  const assets = await Promise.all(targets.map((a) => analyseAsset(a, errors)));
+  const assets = await Promise.all(
+    targets.map((a) => analyseAsset(a, errors, opts.fresh === true)),
+  );
   // Loudest genuine divergence first, but never let a low-confidence reading
   // outrank a high-confidence one.
   assets.sort(

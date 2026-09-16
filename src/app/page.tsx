@@ -1,33 +1,83 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Polygraph, formatFlow } from './components/Polygraph';
 import { Ladder } from './components/Ladder';
 import { Calibration } from './components/Calibration';
 import type { PolygraphSnapshot } from '@/lib/types';
 
+/**
+ * How often the page re-reads the snapshot while it is visible.
+ *
+ * Five minutes, not five seconds. Every genuine refresh costs 12 Nansen calls,
+ * and a dashboard left open on a second monitor should not quietly drain an
+ * API key overnight. Polling pauses entirely when the tab is hidden, and the
+ * manual refresh is the escape hatch when someone wants a reading *now*.
+ */
+const POLL_MS = 5 * 60 * 1000;
+
 export default function Home() {
   const [snap, setSnap] = useState<PolygraphSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const inflight = useRef(false);
+
+  const load = useCallback(async (force: boolean) => {
+    if (inflight.current) return;
+    inflight.current = true;
+    if (force) setRefreshing(true);
+    try {
+      // `force` bypasses the CDN so the reading is genuinely current; the
+      // scheduled poll rides the cache instead and usually costs nothing.
+      const url = force ? `/api/polygraph?fresh=1&t=${Date.now()}` : '/api/polygraph';
+      const res = await fetch(url, force ? { cache: 'no-store' } : undefined);
+      const j = await res.json();
+      if (j.error) {
+        setError(j.error);
+        return;
+      }
+      setError(null);
+      setSnap(j as PolygraphSnapshot);
+      setActive((prev) => prev ?? (j as PolygraphSnapshot).assets[0]?.symbol ?? null);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      inflight.current = false;
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/polygraph')
-      .then((r) => r.json())
-      .then((j) => {
-        if (cancelled) return;
-        if (j.error) {
-          setError(j.error);
-          return;
-        }
-        setSnap(j as PolygraphSnapshot);
-        setActive((j as PolygraphSnapshot).assets[0]?.symbol ?? null);
-      })
-      .catch((e) => !cancelled && setError(String(e)));
-    return () => {
-      cancelled = true;
+    load(false);
+  }, [load]);
+
+  // Poll only while the tab is actually being looked at.
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (timer === null) timer = setInterval(() => load(false), POLL_MS);
     };
+    const stop = () => {
+      if (timer !== null) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    const onVisibility = () => (document.hidden ? stop() : start());
+    onVisibility();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [load]);
+
+  // Ticks the "updated Ns ago" label without re-fetching anything.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
   }, []);
 
   const asset = useMemo(
@@ -70,14 +120,25 @@ export default function Home() {
               <span className="chip">
                 nansen calls <b>{snap.meta.apiCallsThisRequest}</b>
               </span>
-              <span className="chip">
-                {new Date(snap.generatedAt).toUTCString().slice(17, 25)} utc
+              <span
+                className="chip"
+                title={`Snapshot taken ${new Date(snap.generatedAt).toUTCString()}`}
+              >
+                updated <b>{ago(now - new Date(snap.generatedAt).getTime())}</b>
               </span>
               {snap.meta.degraded && (
                 <span className="chip warnc" title={snap.meta.errors.join('\n')}>
                   partial data
                 </span>
               )}
+              <button
+                className="chip refresh"
+                onClick={() => load(true)}
+                disabled={refreshing}
+                title="Bypass the cache and pull a fresh reading from Nansen (12 API calls)"
+              >
+                {refreshing ? 'reading…' : '↻ refresh'}
+              </button>
             </>
           ) : (
             <span className="chip">connecting…</span>
@@ -320,6 +381,17 @@ function Metric({ k, v, tone }: { k: string; v: string; tone?: 'pos' | 'neg' }) 
       <div className={`v ${tone ?? ''}`}>{v}</div>
     </div>
   );
+}
+
+/** "12s" / "4m" / "2h" — a relative age is easier to trust than a UTC clock. */
+function ago(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return 'just now';
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  return `${hr}h ago`;
 }
 
 function fmtStance(s: number): string {
